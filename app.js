@@ -1039,7 +1039,7 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   const RAIO_CANTO_IMAGEM = 36;
   const larguraTabela = LARGURA - MARGEM * 2;
   const tamanhoFonteNome = listaProdutos.length > 20 ? 34 : 38;
-  const alturaCabecalho = 64;
+  const alturaCabecalho = 90;
   const alturaLinha = listaProdutos.length > 20 ? 78 : 88;
 
   // Blocos do topo (mantidos como constantes para o cálculo da altura bater com o desenho real)
@@ -1122,13 +1122,21 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   const inicioLista = y;
   const xNome = MARGEM + 12;
   const xQtd = MARGEM + larguraTabela - 12;
+  const mostrarColunaPreco = !!opcoes.mostrarPrecos;
+  const xPreco = xQtd - 210;
 
   ctx.fillStyle = "#8a7575";
-  ctx.font = `700 22px ${fonte}`;
+  ctx.font = `700 20px ${fonte}`;
   ctx.textAlign = "left";
-  ctx.fillText("PRODUTO", xNome, inicioLista + 34);
+  ctx.fillText("PRODUTO", xNome, inicioLista + 46);
+  if (mostrarColunaPreco) {
+    ctx.textAlign = "right";
+    ctx.fillText("PREÇO POR", xPreco, inicioLista + 30);
+    ctx.fillText("UNIDADE", xPreco, inicioLista + 56);
+  }
   ctx.textAlign = "right";
-  ctx.fillText("QTD", xQtd, inicioLista + 34);
+  ctx.fillText("QUANTIDADE", xQtd, inicioLista + 30);
+  ctx.fillText("DISPONÍVEL", xQtd, inicioLista + 56);
 
   ctx.strokeStyle = corClaraCanvas(corPrincipal, 0.45);
   ctx.lineWidth = 3;
@@ -1163,22 +1171,18 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
     ctx.font = `700 ${tamanhoFonteNome}px ${fonte}`;
     ctx.fillStyle = "#3a2a2a";
     let textoNome = produto.nome;
-    const larguraMaxNome = xQtd - larguraQtd - 40 - xNome;
-    let textoPreco = "";
-    if (opcoes.mostrarPrecos && produto.preco != null) {
-      textoPreco = formatarMoeda(produto.preco);
-    }
+    const larguraMaxNome = (mostrarColunaPreco ? xPreco - 130 : xQtd - larguraQtd - 40) - xNome;
     while (ctx.measureText(textoNome).width > larguraMaxNome && textoNome.length > 1) {
       textoNome = textoNome.slice(0, -1);
     }
     if (textoNome.length < produto.nome.length) textoNome = textoNome.trimEnd() + "…";
     ctx.fillText(textoNome, xNome, yTexto);
 
-    if (textoPreco) {
-      const larguraNome = ctx.measureText(textoNome).width;
-      ctx.font = `600 ${Math.round(tamanhoFonteNome * 0.7)}px ${fonte}`;
-      ctx.fillStyle = "#8a7575";
-      ctx.fillText(textoPreco, xNome + larguraNome + 20, yTexto);
+    if (mostrarColunaPreco && produto.preco != null) {
+      ctx.textAlign = "right";
+      ctx.font = `600 ${Math.round(tamanhoFonteNome * 0.85)}px ${fonte}`;
+      ctx.fillStyle = "#6b5555";
+      ctx.fillText(formatarMoeda(produto.preco), xPreco, yTexto);
     }
   }
 
