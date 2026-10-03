@@ -1037,18 +1037,10 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   const LARGURA = 1080;
   const MARGEM = 92; // padding lateral generoso, para "respirar"
   const RAIO_CANTO_IMAGEM = 36;
-  const GAP_COLUNAS = 48;
-  const usarDuasColunas = listaProdutos.length > 12;
-  const larguraColuna = usarDuasColunas ? (LARGURA - MARGEM * 2 - GAP_COLUNAS) / 2 : LARGURA - MARGEM * 2;
-  const tamanhoFonteNome = listaProdutos.length > 20 ? 36 : 42;
-  const padCartaoX = 30;
-  const padCartaoTopo = 26;
-  const gapEntreCartoes = 18;
-  const alturaConteudoCartao = padCartaoTopo * 2 + tamanhoFonteNome * 1.9;
-  const alturaLinhaItem = alturaConteudoCartao + gapEntreCartoes;
-  const linhasPorColuna = usarDuasColunas
-    ? Math.ceil(listaProdutos.length / 2)
-    : listaProdutos.length;
+  const larguraTabela = LARGURA - MARGEM * 2;
+  const tamanhoFonteNome = listaProdutos.length > 20 ? 34 : 38;
+  const alturaCabecalho = 64;
+  const alturaLinha = listaProdutos.length > 20 ? 78 : 88;
 
   // Blocos do topo (mantidos como constantes para o cálculo da altura bater com o desenho real)
   const TOPO_INICIAL = 96;
@@ -1060,7 +1052,7 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   const BLOCO_DIVISORIA = 56;
   const alturaTopo = TOPO_INICIAL + BLOCO_LOGO + BLOCO_NOME + BLOCO_TITULO + BLOCO_DATA + BLOCO_DIVISORIA;
 
-  const alturaLista = linhasPorColuna * alturaLinhaItem + 24;
+  const alturaLista = alturaCabecalho + listaProdutos.length * alturaLinha + 24;
   const alturaRecado = opcoes.recado ? 130 : 0;
   const alturaRodape = 110;
   const ALTURA = Math.max(1400, alturaTopo + alturaLista + alturaRecado + alturaRodape + MARGEM);
@@ -1126,50 +1118,71 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   ctx.stroke();
   y += BLOCO_DIVISORIA;
 
-  // Lista de produtos — cada um num cartão arredondado, com respiro generoso
+  // Tabela minimalista: Produto | Qtd, só com linhas finas separando
   const inicioLista = y;
+  const xNome = MARGEM + 12;
+  const xQtd = MARGEM + larguraTabela - 12;
+
+  ctx.fillStyle = "#8a7575";
+  ctx.font = `700 22px ${fonte}`;
+  ctx.textAlign = "left";
+  ctx.fillText("PRODUTO", xNome, inicioLista + 34);
+  ctx.textAlign = "right";
+  ctx.fillText("QTD", xQtd, inicioLista + 34);
+
+  ctx.strokeStyle = corClaraCanvas(corPrincipal, 0.45);
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(MARGEM, inicioLista + alturaCabecalho - 8);
+  ctx.lineTo(MARGEM + larguraTabela, inicioLista + alturaCabecalho - 8);
+  ctx.stroke();
+
   for (let i = 0; i < listaProdutos.length; i++) {
     const produto = listaProdutos[i];
-    const coluna = usarDuasColunas ? Math.floor(i / linhasPorColuna) : 0;
-    const linhaNaColuna = usarDuasColunas ? i % linhasPorColuna : i;
-    const x = MARGEM + coluna * (larguraColuna + GAP_COLUNAS);
-    const yCartao = inicioLista + linhaNaColuna * alturaLinhaItem;
+    const yLinha = inicioLista + alturaCabecalho + i * alturaLinha;
+    const yTexto = yLinha + alturaLinha / 2 + tamanhoFonteNome * 0.35;
 
-    ctx.fillStyle = corClaraCanvas(corPrincipal, 0.94);
-    arredondarRetangulo(ctx, x, yCartao, larguraColuna, alturaConteudoCartao, 20);
-    ctx.fill();
+    if (i > 0) {
+      ctx.strokeStyle = corClaraCanvas(corPrincipal, 0.88);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(MARGEM, yLinha);
+      ctx.lineTo(MARGEM + larguraTabela, yLinha);
+      ctx.stroke();
+    }
 
-    const xTexto = x + padCartaoX;
-    const larguraColunaInterna = larguraColuna - padCartaoX * 2;
-    const yBaseTexto = yCartao + padCartaoTopo;
+    const quantidade = parseInt(produto.quantidade, 10) || 0;
+    ctx.font = `800 ${tamanhoFonteNome}px ${fonte}`;
+    ctx.textAlign = "right";
+    ctx.fillStyle = quantidade <= 2 ? "#c0392b" : corPrincipal;
+    const textoQtd = String(quantidade);
+    ctx.fillText(textoQtd, xQtd, yTexto);
+    const larguraQtd = ctx.measureText(textoQtd).width;
 
     ctx.textAlign = "left";
-    ctx.fillStyle = "#3a2a2a";
     ctx.font = `700 ${tamanhoFonteNome}px ${fonte}`;
-
-    let larguraDisponivelNome = larguraColunaInterna;
+    ctx.fillStyle = "#3a2a2a";
+    let textoNome = produto.nome;
+    const larguraMaxNome = xQtd - larguraQtd - 40 - xNome;
     let textoPreco = "";
     if (opcoes.mostrarPrecos && produto.preco != null) {
       textoPreco = formatarMoeda(produto.preco);
-      ctx.font = `700 30px ${fonte}`;
-      larguraDisponivelNome -= ctx.measureText(textoPreco).width + 24;
-      ctx.font = `700 ${tamanhoFonteNome}px ${fonte}`;
     }
-
-    const linhasNome = quebrarTexto(ctx, produto.nome, larguraDisponivelNome, 2);
-    linhasNome.forEach((linha, idx) => {
-      ctx.fillText(linha, xTexto, yBaseTexto + tamanhoFonteNome * 0.8 + idx * (tamanhoFonteNome + 4));
-    });
+    while (ctx.measureText(textoNome).width > larguraMaxNome && textoNome.length > 1) {
+      textoNome = textoNome.slice(0, -1);
+    }
+    if (textoNome.length < produto.nome.length) textoNome = textoNome.trimEnd() + "…";
+    ctx.fillText(textoNome, xNome, yTexto);
 
     if (textoPreco) {
-      ctx.textAlign = "right";
-      ctx.fillStyle = corPrincipal;
-      ctx.font = `700 30px ${fonte}`;
-      ctx.fillText(textoPreco, xTexto + larguraColunaInterna, yBaseTexto + tamanhoFonteNome * 0.8);
+      const larguraNome = ctx.measureText(textoNome).width;
+      ctx.font = `600 ${Math.round(tamanhoFonteNome * 0.7)}px ${fonte}`;
+      ctx.fillStyle = "#8a7575";
+      ctx.fillText(textoPreco, xNome + larguraNome + 20, yTexto);
     }
   }
 
-  y = inicioLista + linhasPorColuna * alturaLinhaItem + 16;
+  y = inicioLista + alturaCabecalho + listaProdutos.length * alturaLinha + 16;
 
   // Recado
   if (opcoes.recado) {
