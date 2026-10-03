@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=10" />
+<link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
 
@@ -33,6 +33,7 @@
       <button class="aba-categoria" type="button" data-categoria="trufas" aria-pressed="false">Trufas</button>
       <button class="aba-categoria" type="button" data-categoria="doces" aria-pressed="false">Doces</button>
       <button class="aba-categoria" type="button" data-categoria="resumo" aria-pressed="false">Vendas</button>
+      <button class="aba-categoria" type="button" data-categoria="config" aria-pressed="false">Config.</button>
     </nav>
 
     <section id="cartao-produto-form" class="cartao-novo-produto">
@@ -44,12 +45,16 @@
         <p id="resumo-vendas-titulo" class="resumo-vendas-titulo">Vendas dos geladinhos</p>
         <div class="resumo-vendas-grid">
           <div class="resumo-vendas-item">
+            <span class="resumo-vendas-label">Valor vendido</span>
+            <strong id="total-valor-vendido">R$ 0,00</strong>
+          </div>
+          <div class="resumo-vendas-item">
             <span class="resumo-vendas-label">Quantidade vendida</span>
             <strong id="total-quantidade-vendida">0 un.</strong>
           </div>
           <div class="resumo-vendas-item">
-            <span class="resumo-vendas-label">Valor vendido</span>
-            <strong id="total-valor-vendido">R$ 0,00</strong>
+            <span class="resumo-vendas-label">Sabores diferentes</span>
+            <strong id="total-sabores-vendidos">0</strong>
           </div>
         </div>
         <div id="resumo-vendas-sabores" class="resumo-vendas-sabores"></div>
@@ -65,15 +70,38 @@
       <h2>Vendas gerais</h2>
       <div class="resumo-vendas-grid">
         <div class="resumo-vendas-item">
+          <span class="resumo-vendas-label">Valor vendido</span>
+          <strong id="total-geral-valor">R$ 0,00</strong>
+        </div>
+        <div class="resumo-vendas-item">
           <span class="resumo-vendas-label">Quantidade vendida</span>
           <strong id="total-geral-quantidade">0 un.</strong>
         </div>
         <div class="resumo-vendas-item">
-          <span class="resumo-vendas-label">Valor vendido</span>
-          <strong id="total-geral-valor">R$ 0,00</strong>
+          <span class="resumo-vendas-label">Sabores diferentes</span>
+          <strong id="total-geral-sabores">0</strong>
         </div>
       </div>
+      <h3 class="titulo-log">Histórico de vendas</h3>
+      <div class="filtro-log" role="group" aria-label="Agrupar histórico">
+        <button type="button" class="filtro-log-botao ativo" data-agrupar="dia" aria-pressed="true">Dia</button>
+        <button type="button" class="filtro-log-botao" data-agrupar="semana" aria-pressed="false">Semana</button>
+        <button type="button" class="filtro-log-botao" data-agrupar="mes" aria-pressed="false">Mês</button>
+      </div>
+      <div id="log-vendas" class="log-vendas"></div>
+      <h3 class="titulo-log">Por sabor</h3>
       <div id="painel-vendas-detalhes" class="painel-vendas-detalhes"></div>
+    </section>
+
+    <section id="painel-config" class="painel-vendas oculto">
+      <h2>Configurações</h2>
+      <p class="config-rotulo">Cor do sistema</p>
+      <div id="config-cores" class="config-cores"></div>
+      <label class="config-personalizada">
+        <span>Outra cor</span>
+        <input id="input-cor-personalizada" type="color" value="#d6336c" />
+      </label>
+      <button id="btn-restaurar-cor" class="botao botao-secundario botao-largo" type="button">Restaurar cor original</button>
     </section>
 
     <!-- ===================== IMAGEM PARA WHATSAPP (na mesma página) ===================== -->
@@ -149,6 +177,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=14" defer></script>
+  <script src="app.js?v=18" defer></script>
 </body>
 </html>

@@ -14,6 +14,10 @@ let ultimasVendasPorProduto = {};
 
 const CATEGORIA_PADRAO = "geladinho";
 const ABA_RESUMO = "resumo";
+const ABA_CONFIG = "config";
+const COR_ORIGINAL = CONFIG.COR_PRINCIPAL;
+const CHAVE_COR = "doceria_cor_principal";
+const CORES_SUGERIDAS = ["#d6336c", "#e8590c", "#f08c00", "#2f9e44", "#0c8599", "#1971c2", "#7048e8", "#862e9c", "#495057"];
 const VENDAS_CONTAR_A_PARTIR_DE = "2026-09-29T03:29:32.211Z";
 const TEMPO_DESFAZER_VENDA_MS = 2 * 60 * 1000;
 const CATEGORIAS = [
@@ -66,7 +70,17 @@ const RESUMO_CONFIG = {
   vazioImagem: "",
 };
 
+const CONFIG_ABA = {
+  id: ABA_CONFIG,
+  nome: "Config.",
+  textoGerarImagem: "",
+  tituloVendas: "Configurações",
+  vazioLista: "",
+  vazioImagem: "",
+};
+
 let categoriaAtual = CATEGORIA_PADRAO;
+let agruparLog = "dia";
 let mostrarPrecosImagem = true;
 let imagensPorCategoria = criarEstadoImagens();
 
@@ -85,6 +99,10 @@ const abasCategorias = Array.from(document.querySelectorAll(".aba-categoria"));
 // ============================================================
 
 function aplicarConfiguracaoVisual() {
+  try {
+    const salva = localStorage.getItem(CHAVE_COR);
+    if (salva && /^#[0-9a-f]{6}$/i.test(salva)) CONFIG.COR_PRINCIPAL = salva;
+  } catch (erro) { /* sem armazenamento: usa a cor do config.js */ }
   document.documentElement.style.setProperty("--cor-principal", CONFIG.COR_PRINCIPAL);
   document.documentElement.style.setProperty("--cor-principal-clara", corClara(CONFIG.COR_PRINCIPAL));
   const metaTema = document.querySelector('meta[name="theme-color"]');
@@ -117,11 +135,12 @@ function criarEstadoImagens() {
 
 function categoriaConfig(categoriaId = categoriaAtual) {
   if (categoriaId === ABA_RESUMO) return RESUMO_CONFIG;
+  if (categoriaId === ABA_CONFIG) return CONFIG_ABA;
   return CATEGORIAS.find((categoria) => categoria.id === categoriaId) || CATEGORIAS[0];
 }
 
 function categoriaValida(categoriaId) {
-  return categoriaId === ABA_RESUMO || CATEGORIAS.some((categoria) => categoria.id === categoriaId);
+  return categoriaId === ABA_RESUMO || categoriaId === ABA_CONFIG || CATEGORIAS.some((categoria) => categoria.id === categoriaId);
 }
 
 function categoriaDoProduto(produto) {
@@ -131,7 +150,7 @@ function categoriaDoProduto(produto) {
 }
 
 function produtosDaCategoria(categoriaId = categoriaAtual) {
-  if (categoriaId === ABA_RESUMO) return produtos;
+  if (categoriaId === ABA_RESUMO || categoriaId === ABA_CONFIG) return produtos;
   return produtos.filter((produto) => categoriaDoProduto(produto) === categoriaId);
 }
 
@@ -244,6 +263,17 @@ function resumoVendasDaCategoria(categoriaId = categoriaAtual) {
   }, { quantidade: 0, valor: 0 });
 }
 
+function saboresDiferentesVendidos(categoriaId) {
+  const idsCategoria = new Set(produtosDaCategoria(categoriaId).map((produto) => produto.id));
+  const vendidos = new Set();
+  vendas.forEach((venda) => {
+    if (idsCategoria.has(venda.produto_id) && Math.abs(parseInt(venda.quantidade, 10) || 0) > 0) {
+      vendidos.add(venda.produto_id);
+    }
+  });
+  return vendidos.size;
+}
+
 function resumoVendasDoProduto(produto) {
   return vendas.reduce((resumo, venda) => {
     if (venda.produto_id !== produto.id) return resumo;
@@ -275,11 +305,26 @@ function criarLinhaVendaSabor(resumo) {
   const nome = document.createElement("strong");
   nome.textContent = resumo.nome;
 
-  const totais = document.createElement("span");
-  totais.textContent = `${formatarQuantidadeVendida(resumo.quantidade)} · ${formatarMoeda(resumo.valor)}`;
+  const unidades = document.createElement("span");
+  unidades.textContent = formatarQuantidadeVendida(resumo.quantidade);
+
+  const total = document.createElement("span");
+  total.textContent = formatarMoeda(resumo.valor);
 
   linha.appendChild(nome);
-  linha.appendChild(totais);
+  linha.appendChild(unidades);
+  linha.appendChild(total);
+  return linha;
+}
+
+function criarCabecalhoVendaSabor() {
+  const linha = document.createElement("div");
+  linha.className = "linha-venda-sabor cabecalho-venda-sabor";
+  ["Sabor", "Unidades vendidas", "Total por sabor"].forEach((texto) => {
+    const celula = document.createElement("span");
+    celula.textContent = texto;
+    linha.appendChild(celula);
+  });
   return linha;
 }
 
@@ -295,6 +340,7 @@ function preencherListaVendasPorSabor(container, categoriaId) {
     return;
   }
 
+  container.appendChild(criarCabecalhoVendaSabor());
   linhas.forEach((resumo) => {
     container.appendChild(criarLinhaVendaSabor(resumo));
   });
@@ -306,13 +352,14 @@ function atualizarResumoVendas() {
   el("resumo-vendas-titulo").textContent = config.tituloVendas;
   el("total-quantidade-vendida").textContent = formatarQuantidadeVendida(resumo.quantidade);
   el("total-valor-vendido").textContent = formatarMoeda(resumo.valor);
+  el("total-sabores-vendidos").textContent = String(saboresDiferentesVendidos(categoriaAtual));
   preencherListaVendasPorSabor(el("resumo-vendas-sabores"), categoriaAtual);
 }
 
 function atualizarContadoresCategorias() {
   abasCategorias.forEach((aba) => {
     const config = categoriaConfig(aba.dataset.categoria);
-    if (config.id === ABA_RESUMO) {
+    if (config.id === ABA_RESUMO || config.id === ABA_CONFIG) {
       aba.textContent = config.nome;
       return;
     }
@@ -323,8 +370,10 @@ function atualizarContadoresCategorias() {
 
 function renderizarPainelVendas() {
   const resumoGeral = resumoVendasDaCategoria(ABA_RESUMO);
+  renderizarLogVendas();
   el("total-geral-quantidade").textContent = formatarQuantidadeVendida(resumoGeral.quantidade);
   el("total-geral-valor").textContent = formatarMoeda(resumoGeral.valor);
+  el("total-geral-sabores").textContent = String(saboresDiferentesVendidos(ABA_RESUMO));
 
   const detalhes = el("painel-vendas-detalhes");
   detalhes.textContent = "";
@@ -352,6 +401,170 @@ function renderizarPainelVendas() {
   });
 }
 
+// ---------- Histórico de vendas (log por dia, semana e mês) ----------
+
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const DIAS_CURTOS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+function doisDigitos(n) {
+  return String(n).padStart(2, "0");
+}
+
+function inicioDaSemana(data) {
+  const inicio = new Date(data.getFullYear(), data.getMonth(), data.getDate());
+  const deslocamento = (inicio.getDay() + 6) % 7; // semana começa na segunda
+  inicio.setDate(inicio.getDate() - deslocamento);
+  return inicio;
+}
+
+function dataCurta(data) {
+  return `${doisDigitos(data.getDate())}/${doisDigitos(data.getMonth() + 1)}`;
+}
+
+function horaCurta(data) {
+  return `${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`;
+}
+
+// Devolve a chave (para agrupar) e o título do grupo de uma venda
+function grupoDoLog(data) {
+  if (agruparLog === "mes") {
+    return {
+      chave: `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}`,
+      titulo: `${MESES[data.getMonth()]} de ${data.getFullYear()}`,
+    };
+  }
+  if (agruparLog === "semana") {
+    const inicio = inicioDaSemana(data);
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 6);
+    return {
+      chave: `${inicio.getFullYear()}-${doisDigitos(inicio.getMonth() + 1)}-${doisDigitos(inicio.getDate())}`,
+      titulo: `Semana de ${dataCurta(inicio)} a ${dataCurta(fim)}`,
+    };
+  }
+  return {
+    chave: `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}`,
+    titulo: `${DIAS_CURTOS[data.getDay()]}, ${dataCurta(data)}`,
+  };
+}
+
+function renderizarLogVendas() {
+  const container = el("log-vendas");
+  container.textContent = "";
+  const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]));
+
+  const registros = vendas
+    .map((venda) => {
+      const produto = produtosPorId.get(venda.produto_id);
+      const quantidade = Math.abs(parseInt(venda.quantidade, 10) || 0);
+      const preco = venda.preco_unitario != null ? Number(venda.preco_unitario) : Number(produto?.preco || 0);
+      return {
+        data: new Date(venda.criado_em),
+        nome: produto ? produto.nome : "Produto removido",
+        quantidade,
+        valor: quantidade * (Number.isFinite(preco) ? preco : 0),
+      };
+    })
+    .filter((r) => r.quantidade > 0 && !Number.isNaN(r.data.getTime()))
+    .sort((a, b) => b.data - a.data);
+
+  if (registros.length === 0) {
+    const vazio = document.createElement("p");
+    vazio.className = "mensagem-vendas-vazia";
+    vazio.textContent = "Nenhuma venda registrada ainda.";
+    container.appendChild(vazio);
+    return;
+  }
+
+  const grupos = new Map();
+  registros.forEach((registro) => {
+    const { chave, titulo } = grupoDoLog(registro.data);
+    if (!grupos.has(chave)) grupos.set(chave, { titulo, itens: [], quantidade: 0, valor: 0 });
+    const grupo = grupos.get(chave);
+    grupo.itens.push(registro);
+    grupo.quantidade += registro.quantidade;
+    grupo.valor += registro.valor;
+  });
+
+  grupos.forEach((grupo) => {
+    const bloco = document.createElement("section");
+    bloco.className = "grupo-log";
+
+    const cabecalho = document.createElement("div");
+    cabecalho.className = "grupo-log-cabecalho";
+    const titulo = document.createElement("strong");
+    titulo.textContent = grupo.titulo;
+    const total = document.createElement("span");
+    total.textContent = `${formatarQuantidadeVendida(grupo.quantidade)} · ${formatarMoeda(grupo.valor)}`;
+    cabecalho.appendChild(titulo);
+    cabecalho.appendChild(total);
+    bloco.appendChild(cabecalho);
+
+    grupo.itens.forEach((item) => {
+      const linha = document.createElement("div");
+      linha.className = "linha-log";
+      const quando = document.createElement("span");
+      quando.className = "log-quando";
+      quando.textContent = agruparLog === "dia" ? horaCurta(item.data) : `${dataCurta(item.data)} ${horaCurta(item.data)}`;
+      const nome = document.createElement("strong");
+      nome.textContent = item.nome;
+      const qtd = document.createElement("span");
+      qtd.textContent = formatarQuantidadeVendida(item.quantidade);
+      const valor = document.createElement("span");
+      valor.textContent = formatarMoeda(item.valor);
+      [quando, nome, qtd, valor].forEach((n) => linha.appendChild(n));
+      bloco.appendChild(linha);
+    });
+
+    container.appendChild(bloco);
+  });
+}
+
+function definirAgrupamentoLog(modo) {
+  agruparLog = modo;
+  document.querySelectorAll(".filtro-log-botao").forEach((botao) => {
+    const ativo = botao.dataset.agrupar === modo;
+    botao.classList.toggle("ativo", ativo);
+    botao.setAttribute("aria-pressed", ativo ? "true" : "false");
+  });
+  renderizarLogVendas();
+}
+
+// ---------- Configurações (cor do sistema) ----------
+
+function renderizarConfig() {
+  const container = el("config-cores");
+  container.textContent = "";
+  const atual = CONFIG.COR_PRINCIPAL.toLowerCase();
+
+  CORES_SUGERIDAS.forEach((cor) => {
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.className = "config-cor" + (cor.toLowerCase() === atual ? " ativa" : "");
+    botao.style.background = cor;
+    botao.setAttribute("aria-label", `Usar a cor ${cor}`);
+    botao.addEventListener("click", () => mudarCorSistema(cor));
+    container.appendChild(botao);
+  });
+
+  el("input-cor-personalizada").value = atual;
+}
+
+function mudarCorSistema(cor, salvar = true) {
+  CONFIG.COR_PRINCIPAL = cor;
+  if (salvar) {
+    try { localStorage.setItem(CHAVE_COR, cor); } catch (erro) { /* ignora */ }
+  }
+  aplicarConfiguracaoVisual();
+  limparImagensGeradas();
+  renderizarConfig();
+}
+
+function restaurarCorSistema() {
+  try { localStorage.removeItem(CHAVE_COR); } catch (erro) { /* ignora */ }
+  mudarCorSistema(COR_ORIGINAL, false);
+}
+
 function renderizarProdutos() {
   // Remove cards antigos, mantendo os elementos fixos (estado vazio / carregando)
   Array.from(listaProdutos.querySelectorAll(".cartao-produto")).forEach((n) => n.remove());
@@ -360,6 +573,10 @@ function renderizarProdutos() {
   if (categoriaAtual === ABA_RESUMO) {
     estadoVazio.classList.add("oculto");
     renderizarPainelVendas();
+    return;
+  }
+  if (categoriaAtual === ABA_CONFIG) {
+    estadoVazio.classList.add("oculto");
     return;
   }
 
@@ -748,6 +965,11 @@ function configurarEventos() {
     if (!el("resultado-imagem").classList.contains("oculto")) gerarPreviaImagem();
   });
 
+  document.querySelectorAll(".filtro-log-botao").forEach((botao) => {
+    botao.addEventListener("click", () => definirAgrupamentoLog(botao.dataset.agrupar));
+  });
+  el("input-cor-personalizada").addEventListener("change", (e) => mudarCorSistema(e.target.value));
+  el("btn-restaurar-cor").addEventListener("click", restaurarCorSistema);
   el("btn-compartilhar").addEventListener("click", compartilharImagem);
   el("btn-baixar-imagem").addEventListener("click", baixarImagem);
 }
@@ -758,7 +980,7 @@ function selecionarCategoria(categoriaId) {
   atualizarInterfaceCategoria();
   renderizarProdutos();
 
-  if (categoriaAtual === ABA_RESUMO) return;
+  if (categoriaAtual === ABA_RESUMO || categoriaAtual === ABA_CONFIG) return;
 
   if (!el("resultado-imagem").classList.contains("oculto")) {
     const imagem = imagemDaCategoria();
@@ -773,6 +995,8 @@ function selecionarCategoria(categoriaId) {
 function atualizarInterfaceCategoria() {
   const config = categoriaConfig();
   const resumoAtivo = categoriaAtual === ABA_RESUMO;
+  const configAtivo = categoriaAtual === ABA_CONFIG;
+  const semProdutos = resumoAtivo || configAtivo;
 
   abasCategorias.forEach((aba) => {
     const ativa = aba.dataset.categoria === categoriaAtual;
@@ -780,13 +1004,18 @@ function atualizarInterfaceCategoria() {
     aba.setAttribute("aria-pressed", ativa ? "true" : "false");
   });
 
-  el("cartao-produto-form").classList.toggle("oculto", resumoAtivo);
-  listaProdutos.classList.toggle("oculto", resumoAtivo);
-  el("secao-imagem").classList.toggle("oculto", resumoAtivo);
+  el("cartao-produto-form").classList.toggle("oculto", semProdutos);
+  listaProdutos.classList.toggle("oculto", semProdutos);
+  el("secao-imagem").classList.toggle("oculto", semProdutos);
   el("painel-vendas").classList.toggle("oculto", !resumoAtivo);
+  el("painel-config").classList.toggle("oculto", !configAtivo);
 
   if (resumoAtivo) {
     renderizarPainelVendas();
+    return;
+  }
+  if (configAtivo) {
+    renderizarConfig();
     return;
   }
 
@@ -1121,9 +1350,10 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
   // Tabela minimalista: Produto | Qtd, só com linhas finas separando
   const inicioLista = y;
   const xNome = MARGEM + 12;
-  const xQtd = MARGEM + larguraTabela - 12;
+  const xDireita = MARGEM + larguraTabela - 12;
   const mostrarColunaPreco = !!opcoes.mostrarPrecos;
-  const xPreco = xQtd - 210;
+  const xPreco = xDireita;
+  const xQtd = mostrarColunaPreco ? xDireita - 200 : xDireita;
 
   ctx.fillStyle = "#8a7575";
   ctx.font = `700 20px ${fonte}`;
@@ -1171,7 +1401,7 @@ async function desenharImagemCardapio(listaProdutos, opcoes) {
     ctx.font = `700 ${tamanhoFonteNome}px ${fonte}`;
     ctx.fillStyle = "#3a2a2a";
     let textoNome = produto.nome;
-    const larguraMaxNome = (mostrarColunaPreco ? xPreco - 130 : xQtd - larguraQtd - 40) - xNome;
+    const larguraMaxNome = (xQtd - Math.max(larguraQtd, 110) - 30) - xNome;
     while (ctx.measureText(textoNome).width > larguraMaxNome && textoNome.length > 1) {
       textoNome = textoNome.slice(0, -1);
     }
