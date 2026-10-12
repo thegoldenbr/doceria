@@ -588,10 +588,10 @@ function renderizarLogVendas() {
     levas.forEach((leva, i) => {
       const ultimaVenda = leva.itens.reduce((mais, item) => (item.data > mais ? item.data : mais), leva.itens[0].data);
       const primeiraVenda = leva.itens.reduce((menos, item) => (item.data < menos ? item.data : menos), leva.itens[0].data);
-      const periodo = leva.fim
-        ? `${dataCurta(primeiraVenda)} a ${dataCurta(ultimaVenda)}`
-        : `${dataCurta(primeiraVenda)} · em andamento`;
+      const mesmoDia = dataCurta(primeiraVenda) === dataCurta(ultimaVenda);
+      const periodo = mesmoDia ? dataCurta(primeiraVenda) : `${dataCurta(primeiraVenda)} a ${dataCurta(ultimaVenda)}`;
       grupos.set(`leva-${i}`, {
+        leva,
         titulo: `${leva.nome} · ${periodo}`,
         itens: [...leva.itens].sort((a, b) => b.data - a.data),
         quantidade: leva.vendidos,
@@ -628,7 +628,11 @@ function renderizarLogVendas() {
     titulo.textContent = grupo.titulo;
     const total = document.createElement("span");
     total.textContent = `${formatarQuantidadeVendida(grupo.quantidade)} · ${formatarMoeda(grupo.valor)}`;
-    cabecalho.appendChild(titulo);
+    const esquerda = document.createElement("div");
+    esquerda.className = "grupo-log-titulo";
+    esquerda.appendChild(titulo);
+    if (grupo.leva) esquerda.appendChild(criarSelosLeva(grupo.leva));
+    cabecalho.appendChild(esquerda);
     cabecalho.appendChild(total);
     bloco.appendChild(cabecalho);
 
@@ -708,12 +712,28 @@ function calcularLevas() {
       }
     });
     if (leva) levas.push(leva);
+    const doProduto = levas.filter((l) => l.produtoId === produto.id);
+    if (doProduto.length > 0) doProduto[doProduto.length - 1].atual = true;
   });
 
   const agora = new Date();
   return levas
     .filter((leva) => (leva.fim || agora).getTime() >= corte)
     .sort((a, b) => (b.fim || agora) - (a.fim || agora));
+}
+
+function criarSelosLeva(leva) {
+  const selos = document.createElement("span");
+  selos.className = "selos-leva";
+  const adicionar = (texto, classe) => {
+    const selo = document.createElement("span");
+    selo.className = `selo-leva ${classe}`;
+    selo.textContent = texto;
+    selos.appendChild(selo);
+  };
+  if (leva.atual) adicionar("Atual", "atual");
+  adicionar(leva.fim ? "Encerrada" : "Em andamento", leva.fim ? "encerrada" : "andamento");
+  return selos;
 }
 
 function preencherFiltroLevas() {
@@ -762,9 +782,11 @@ function renderizarLevas() {
     periodo.className = "leva-periodo";
     periodo.textContent = leva.fim
       ? `${dataCurta(leva.inicio)} a ${dataCurta(leva.fim)}`
-      : `${dataCurta(leva.inicio)} · em andamento`;
+      : `desde ${dataCurta(leva.inicio)}`;
     topo.appendChild(nome);
     topo.appendChild(periodo);
+    cartao.appendChild(topo);
+    cartao.appendChild(criarSelosLeva(leva));
 
     const detalhe = document.createElement("div");
     detalhe.className = "leva-detalhe";
@@ -781,7 +803,6 @@ function renderizarLevas() {
       detalhe.appendChild(caixa);
     });
 
-    cartao.appendChild(topo);
     cartao.appendChild(detalhe);
     container.appendChild(cartao);
   });
