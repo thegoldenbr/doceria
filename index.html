@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=18" />
+<link rel="stylesheet" href="style.css?v=19" />
 </head>
 <body>
 
@@ -24,6 +24,10 @@
 
     <header class="cabecalho">
       <h1 id="nome-doceria">Doceria</h1>
+      <div class="acoes-cabecalho">
+        <button class="icone-cabecalho" type="button" data-categoria="resumo" aria-pressed="false" aria-label="Vendas" title="Vendas">🛒</button>
+        <button class="icone-cabecalho" type="button" data-categoria="config" aria-pressed="false" aria-label="Configurações" title="Configurações">⚙️</button>
+      </div>
     </header>
 
     <div id="aviso-erro" class="aviso-erro oculto" role="alert"></div>
@@ -188,6 +192,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=20" defer></script>
+  <script src="app.js?v=22" defer></script>
 </body>
 </html>

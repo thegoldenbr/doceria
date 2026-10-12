@@ -65,6 +65,7 @@ const CATEGORIAS = [
 const RESUMO_CONFIG = {
   id: ABA_RESUMO,
   nome: "Vendas",
+  icone: "🛒",
   textoGerarImagem: "",
   tituloVendas: "Vendas gerais",
   vazioLista: "",
@@ -74,6 +75,7 @@ const RESUMO_CONFIG = {
 const CONFIG_ABA = {
   id: ABA_CONFIG,
   nome: "Config.",
+  icone: "⚙️",
   textoGerarImagem: "",
   tituloVendas: "Configurações",
   vazioLista: "",
@@ -144,6 +146,7 @@ function sincronizarCategoriasDosProdutos() {
 carregarCategoriasSalvas();
 
 let categoriaAtual = CATEGORIA_PADRAO;
+let ultimaCategoriaProdutos = CATEGORIA_PADRAO;
 let agruparLog = "dia";
 let mostrarPrecosImagem = true;
 let imagensPorCategoria = criarEstadoImagens();
@@ -162,7 +165,7 @@ const abasCategorias = () => Array.from(navCategorias.querySelectorAll(".aba-cat
 // Monta as abas: categorias (padrão + criadas), depois Vendas e Config.
 function renderizarAbasCategorias() {
   navCategorias.textContent = "";
-  const ids = [...CATEGORIAS.map((c) => c.id), ABA_RESUMO, ABA_CONFIG];
+  const ids = CATEGORIAS.map((c) => c.id);
   ids.forEach((id) => {
     const botao = document.createElement("button");
     botao.type = "button";
@@ -447,7 +450,7 @@ function atualizarContadoresCategorias() {
   abasCategorias().forEach((aba) => {
     const config = categoriaConfig(aba.dataset.categoria);
     if (config.id === ABA_RESUMO || config.id === ABA_CONFIG) {
-      aba.textContent = config.nome;
+      aba.textContent = config.icone;
       return;
     }
     const total = produtosDaCategoria(config.id).length;
@@ -1218,6 +1221,13 @@ function configurarEventos() {
     const aba = evento.target.closest(".aba-categoria");
     if (aba) selecionarCategoria(aba.dataset.categoria);
   });
+  document.querySelectorAll(".icone-cabecalho").forEach((botao) => {
+    botao.addEventListener("click", () => {
+      const id = botao.dataset.categoria;
+      // Tocar de novo no ícone aberto volta para a última categoria de produtos
+      selecionarCategoria(id === categoriaAtual ? ultimaCategoriaProdutos : id);
+    });
+  });
   el("btn-criar-categoria").addEventListener("click", criarCategoria);
   el("input-nova-categoria").addEventListener("keydown", (evento) => {
     if (evento.key === "Enter") criarCategoria();
@@ -1251,6 +1261,7 @@ function configurarEventos() {
 function selecionarCategoria(categoriaId) {
   if (!categoriaValida(categoriaId) || categoriaAtual === categoriaId) return;
   categoriaAtual = categoriaId;
+  if (categoriaId !== ABA_RESUMO && categoriaId !== ABA_CONFIG) ultimaCategoriaProdutos = categoriaId;
   atualizarInterfaceCategoria();
   renderizarProdutos();
 
@@ -1276,6 +1287,12 @@ function atualizarInterfaceCategoria() {
     const ativa = aba.dataset.categoria === categoriaAtual;
     aba.classList.toggle("ativa", ativa);
     aba.setAttribute("aria-pressed", ativa ? "true" : "false");
+  });
+
+  document.querySelectorAll(".icone-cabecalho").forEach((botao) => {
+    const ativo = botao.dataset.categoria === categoriaAtual;
+    botao.classList.toggle("ativa", ativo);
+    botao.setAttribute("aria-pressed", ativo ? "true" : "false");
   });
 
   el("cartao-produto-form").classList.toggle("oculto", semProdutos);

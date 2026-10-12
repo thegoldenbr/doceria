@@ -64,6 +64,31 @@ img, canvas {
 .cabecalho {
   align-items: center;
   text-align: center;
+  position: relative;
+}
+
+.acoes-cabecalho {
+  position: absolute;
+  top: 18px;
+  right: var(--espacamento-lateral);
+  display: flex;
+  gap: 6px;
+}
+
+.icone-cabecalho {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-cartao);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icone-cabecalho.ativa {
+  border-color: var(--cor-principal);
+  background: var(--cor-principal-clara);
 }
 
 .cabecalho h1 {
