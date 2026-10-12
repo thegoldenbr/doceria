@@ -728,7 +728,7 @@ img, canvas {
 
 .filtro-log {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 4px;
   background: #f2dfdf;

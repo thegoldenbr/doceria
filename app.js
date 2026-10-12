@@ -580,7 +580,33 @@ function renderizarLogVendas() {
   }
 
   const grupos = new Map();
-  registros.forEach((registro) => {
+  if (agruparLog === "leva") {
+    // Por produto e por leva: período de venda e valor gerado em cada uma
+    const levas = calcularLevas()
+      .filter((leva) => leva.itens.length > 0)
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || (b.fim || new Date()) - (a.fim || new Date()));
+    levas.forEach((leva, i) => {
+      const ultimaVenda = leva.itens.reduce((mais, item) => (item.data > mais ? item.data : mais), leva.itens[0].data);
+      const primeiraVenda = leva.itens.reduce((menos, item) => (item.data < menos ? item.data : menos), leva.itens[0].data);
+      const periodo = leva.fim
+        ? `${dataCurta(primeiraVenda)} a ${dataCurta(ultimaVenda)}`
+        : `${dataCurta(primeiraVenda)} · em andamento`;
+      grupos.set(`leva-${i}`, {
+        titulo: `${leva.nome} · ${periodo}`,
+        itens: [...leva.itens].sort((a, b) => b.data - a.data),
+        quantidade: leva.vendidos,
+        valor: leva.valor,
+      });
+    });
+    if (grupos.size === 0) {
+      const vazio = document.createElement("p");
+      vazio.className = "mensagem-vendas-vazia";
+      vazio.textContent = "Nenhuma leva com vendas ainda.";
+      container.appendChild(vazio);
+      carrosselLog.atualizar();
+      return;
+    }
+  } else registros.forEach((registro) => {
     const { chave, titulo } = grupoDoLog(registro.data);
     if (!grupos.has(chave)) grupos.set(chave, { titulo, itens: [], quantidade: 0, valor: 0 });
     const grupo = grupos.get(chave);
@@ -655,18 +681,20 @@ function calcularLevas() {
     let saldo = atual - lista.reduce((soma, m) => soma + m.delta, 0);
     let leva = null;
     const abrir = (data, feitos) => {
-      leva = { produtoId: produto.id, nome: produto.nome, inicio: data, fim: null, feitos, vendidos: 0, valor: 0 };
+      leva = { produtoId: produto.id, nome: produto.nome, inicio: data, fim: null, feitos, vendidos: 0, valor: 0, itens: [] };
     };
 
     if (saldo > 0) abrir(lista[0].data, saldo);
 
     lista.forEach((m) => {
       if (m.tipo === "venda") {
-        if (leva) {
+        if (leva && m.data.getTime() >= corte) {
           const quantidade = Math.abs(m.delta);
           const preco = m.preco_unitario != null ? Number(m.preco_unitario) : Number(produto.preco || 0);
+          const valor = quantidade * (Number.isFinite(preco) ? preco : 0);
           leva.vendidos += quantidade;
-          leva.valor += quantidade * (Number.isFinite(preco) ? preco : 0);
+          leva.valor += valor;
+          leva.itens.push({ data: m.data, nome: produto.nome, quantidade, valor });
         }
       } else if (m.delta > 0) {
         if (leva) leva.feitos += m.delta;
@@ -822,7 +850,7 @@ const carrosselLog = criarCarrossel({
   posicao: el("log-posicao"),
   completo: el("btn-log-completo"),
   item: ".grupo-log",
-  unidade: () => ({ dia: ["dia", "dias"], semana: ["semana", "semanas"], mes: ["mês", "meses"] })[agruparLog],
+  unidade: () => ({ dia: ["dia", "dias"], semana: ["semana", "semanas"], mes: ["mês", "meses"], leva: ["leva", "levas"] })[agruparLog],
   aoAlternar: () => renderizarLogVendas(),
 });
 
