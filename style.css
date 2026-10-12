@@ -801,22 +801,18 @@ img, canvas {
   position: relative;
 }
 
-/* Setas nas laterais, no centro da tela enquanto a tabela estiver visível */
+/* Setas ao lado do contador, abaixo da tabela (não cobrem o conteúdo) */
 .log-setas {
-  position: absolute;
-  inset: 0 -6px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  pointer-events: none;
+  gap: 10px;
 }
 
-.log-setas.oculto-setas {
+.log-setas.oculto-setas .seta-log {
   display: none;
 }
 
 .seta-log {
-  pointer-events: auto;
   box-shadow: 0 2px 8px rgba(58, 42, 42, 0.25);
   width: 26px;
   height: 26px;

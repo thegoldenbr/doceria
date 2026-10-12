@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=21" />
+<link rel="stylesheet" href="style.css?v=22" />
 </head>
 <body>
 
@@ -74,13 +74,13 @@
         </div>
         <div class="log-area">
           <div id="log-vendas" class="log-vendas"></div>
-          <div id="log-setas" class="log-setas">
-            <button id="btn-log-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
-            <button id="btn-log-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
-          </div>
         </div>
         <div class="log-controles">
-          <span id="log-posicao" class="log-posicao"></span>
+          <div id="log-setas" class="log-setas">
+            <button id="btn-log-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
+            <span id="log-posicao" class="log-posicao"></span>
+            <button id="btn-log-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
+          </div>
           <button id="btn-log-completo" class="botao-log-completo" type="button" aria-pressed="false">Exibir completo</button>
         </div>
       </section>
@@ -89,13 +89,13 @@
         <h2>Por sabor</h2>
         <div class="log-area">
           <div id="painel-vendas-detalhes" class="painel-vendas-detalhes"></div>
-          <div id="sabor-setas" class="log-setas">
-            <button id="btn-sabor-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
-            <button id="btn-sabor-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
-          </div>
         </div>
         <div class="log-controles">
-          <span id="sabor-posicao" class="log-posicao"></span>
+          <div id="sabor-setas" class="log-setas">
+            <button id="btn-sabor-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
+            <span id="sabor-posicao" class="log-posicao"></span>
+            <button id="btn-sabor-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
+          </div>
           <button id="btn-sabor-completo" class="botao-log-completo" type="button" aria-pressed="false">Exibir completo</button>
         </div>
       </section>
@@ -193,6 +193,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=22" defer></script>
+  <script src="app.js?v=23" defer></script>
 </body>
 </html>

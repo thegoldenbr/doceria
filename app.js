@@ -494,7 +494,6 @@ function renderizarPainelVendas() {
 
 // ---------- Histórico de vendas (log por dia, semana e mês) ----------
 
-const LINHAS_POR_PAGINA_LOG = 10;
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const DIAS_CURTOS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -579,17 +578,8 @@ function renderizarLogVendas() {
     grupo.valor += registro.valor;
   });
 
-  // Em blocos: cada slide mostra até 10 linhas; no modo completo, tudo de uma vez
-  const paginas = [];
-  grupos.forEach((grupo) => {
-    const itens = carrosselLog.estaCompleto() ? [grupo.itens] : [];
-    if (itens.length === 0) {
-      for (let i = 0; i < grupo.itens.length; i += LINHAS_POR_PAGINA_LOG) {
-        itens.push(grupo.itens.slice(i, i + LINHAS_POR_PAGINA_LOG));
-      }
-    }
-    itens.forEach((linhas) => paginas.push({ grupo, linhas }));
-  });
+  // Um slide por dia/semana/mês; passar para o lado troca de período
+  const paginas = Array.from(grupos.values()).map((grupo) => ({ grupo, linhas: grupo.itens }));
 
   paginas.forEach(({ grupo, linhas }) => {
     const bloco = document.createElement("section");
@@ -651,7 +641,8 @@ function criarCarrossel({ container, setas, anterior, proximo, posicao, completo
 
     if (!emCarrossel) {
       container.style.height = "";
-      posicao.textContent = total > 0 ? `${total} ${total === 1 ? unidade[0] : unidade[1]}` : "";
+      const [singular, plural] = typeof unidade === "function" ? unidade() : unidade;
+      posicao.textContent = total > 0 ? `${total} ${total === 1 ? singular : plural}` : "";
       return;
     }
     // A altura acompanha só o bloco visível, sem sobrar espaço do bloco mais comprido
@@ -690,7 +681,7 @@ const carrosselLog = criarCarrossel({
   posicao: el("log-posicao"),
   completo: el("btn-log-completo"),
   item: ".grupo-log",
-  unidade: ["página", "páginas"],
+  unidade: () => ({ dia: ["dia", "dias"], semana: ["semana", "semanas"], mes: ["mês", "meses"] })[agruparLog],
   aoAlternar: () => renderizarLogVendas(),
 });
 
