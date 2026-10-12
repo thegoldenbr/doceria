@@ -631,7 +631,7 @@ function renderizarLogVendas() {
 
 // ---------- Levas: do estoque repor (sair do zero) até zerar de novo ----------
 
-const LEVAS_POR_VEZ = 20;
+const LEVAS_POR_VEZ = 5;
 let levasLimite = LEVAS_POR_VEZ;
 let levasProdutoFiltro = "";
 

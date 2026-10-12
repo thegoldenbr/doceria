@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=23" />
+<link rel="stylesheet" href="style.css?v=24" />
 </head>
 <body>
 
@@ -66,6 +66,14 @@
       </section>
 
       <section class="painel-vendas">
+        <h2>Levas</h2>
+        <p class="levas-ajuda">Cada leva começa quando você repõe o estoque e fecha quando ele zera.</p>
+        <select id="select-levas-produto" class="levas-filtro" aria-label="Filtrar levas por sabor"></select>
+        <div id="lista-levas" class="lista-levas"></div>
+        <button id="btn-levas-mais" class="botao-log-completo oculto" type="button">Ver mais levas</button>
+      </section>
+
+      <section class="painel-vendas">
         <h2>Histórico de vendas</h2>
         <div class="filtro-log" role="group" aria-label="Agrupar histórico">
           <button type="button" class="filtro-log-botao ativo" data-agrupar="dia" aria-pressed="true">Dia</button>
@@ -98,14 +106,6 @@
           </div>
           <button id="btn-sabor-completo" class="botao-log-completo" type="button" aria-pressed="false">Exibir completo</button>
         </div>
-      </section>
-
-      <section class="painel-vendas">
-        <h2>Levas</h2>
-        <p class="levas-ajuda">Cada leva começa quando você repõe o estoque e fecha quando ele zera.</p>
-        <select id="select-levas-produto" class="levas-filtro" aria-label="Filtrar levas por sabor"></select>
-        <div id="lista-levas" class="lista-levas"></div>
-        <button id="btn-levas-mais" class="botao-log-completo oculto" type="button">Ver mais levas</button>
       </section>
     </div>
 
@@ -201,6 +201,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=24" defer></script>
+  <script src="app.js?v=25" defer></script>
 </body>
 </html>
