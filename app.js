@@ -9,6 +9,7 @@ const db = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 // ---------- Estado em memória ----------
 let produtos = []; // lista de produtos vinda do banco
 let vendas = []; // movimentações de venda usadas no resumo
+let movimentos = []; // todas as movimentações (vendas, entradas, ajustes) usadas nas levas
 let travaSalvar = false; // trava simples contra toque duplo em Salvar/Excluir
 let ultimasVendasPorProduto = {};
 
@@ -314,17 +315,26 @@ async function carregarProdutos() {
 
 async function carregarVendas() {
   try {
-    const { data, error } = await db
-      .from("movimentacoes")
-      .select("id, produto_id, quantidade, preco_unitario, criado_em")
-      .eq("tipo", "venda")
-      .gte("criado_em", VENDAS_CONTAR_A_PARTIR_DE);
+    const tamanhoPagina = 1000;
+    let todas = [];
+    for (let inicio = 0; ; inicio += tamanhoPagina) {
+      const { data, error } = await db
+        .from("movimentacoes")
+        .select("id, produto_id, tipo, quantidade, preco_unitario, criado_em")
+        .order("criado_em", { ascending: true })
+        .range(inicio, inicio + tamanhoPagina - 1);
 
-    if (error) throw error;
-    vendas = data || [];
+      if (error) throw error;
+      todas = todas.concat(data || []);
+      if (!data || data.length < tamanhoPagina) break;
+    }
+    movimentos = todas;
+    const corte = new Date(VENDAS_CONTAR_A_PARTIR_DE).getTime();
+    vendas = todas.filter((m) => m.tipo === "venda" && new Date(m.criado_em).getTime() >= corte);
   } catch (erro) {
     console.error("Não foi possível carregar o resumo de vendas.", erro);
     vendas = [];
+    movimentos = [];
   }
 }
 
@@ -490,6 +500,7 @@ function renderizarPainelVendas() {
     detalhes.appendChild(grupo);
   });
   carrosselSabores.atualizar();
+  renderizarLevas();
 }
 
 // ---------- Histórico de vendas (log por dia, semana e mês) ----------
@@ -616,6 +627,136 @@ function renderizarLogVendas() {
 
   carrosselLog.voltarAoInicio();
   carrosselLog.atualizar();
+}
+
+// ---------- Levas: do estoque repor (sair do zero) até zerar de novo ----------
+
+const LEVAS_POR_VEZ = 20;
+let levasLimite = LEVAS_POR_VEZ;
+let levasProdutoFiltro = "";
+
+function calcularLevas() {
+  const porProduto = new Map();
+  movimentos.forEach((m) => {
+    if (!porProduto.has(m.produto_id)) porProduto.set(m.produto_id, []);
+    porProduto.get(m.produto_id).push(m);
+  });
+  const corte = new Date(VENDAS_CONTAR_A_PARTIR_DE).getTime();
+  const levas = [];
+
+  produtos.forEach((produto) => {
+    const lista = (porProduto.get(produto.id) || [])
+      .map((m) => ({ ...m, data: new Date(m.criado_em), delta: parseInt(m.quantidade, 10) || 0 }))
+      .filter((m) => !Number.isNaN(m.data.getTime()))
+      .sort((a, b) => a.data - b.data);
+    if (lista.length === 0) return;
+
+    const atual = parseInt(produto.quantidade, 10) || 0;
+    let saldo = atual - lista.reduce((soma, m) => soma + m.delta, 0);
+    let leva = null;
+    const abrir = (data, feitos) => {
+      leva = { produtoId: produto.id, nome: produto.nome, inicio: data, fim: null, feitos, vendidos: 0, valor: 0 };
+    };
+
+    if (saldo > 0) abrir(lista[0].data, saldo);
+
+    lista.forEach((m) => {
+      if (m.tipo === "venda") {
+        if (leva) {
+          const quantidade = Math.abs(m.delta);
+          const preco = m.preco_unitario != null ? Number(m.preco_unitario) : Number(produto.preco || 0);
+          leva.vendidos += quantidade;
+          leva.valor += quantidade * (Number.isFinite(preco) ? preco : 0);
+        }
+      } else if (m.delta > 0) {
+        if (leva) leva.feitos += m.delta;
+        else if (saldo + m.delta > 0) abrir(m.data, saldo + m.delta);
+      }
+      saldo += m.delta;
+      if (leva && saldo <= 0) {
+        leva.fim = m.data;
+        levas.push(leva);
+        leva = null;
+      }
+    });
+    if (leva) levas.push(leva);
+  });
+
+  const agora = new Date();
+  return levas
+    .filter((leva) => (leva.fim || agora).getTime() >= corte)
+    .sort((a, b) => (b.fim || agora) - (a.fim || agora));
+}
+
+function preencherFiltroLevas() {
+  const select = el("select-levas-produto");
+  const valor = levasProdutoFiltro;
+  select.textContent = "";
+  const todos = document.createElement("option");
+  todos.value = "";
+  todos.textContent = "Todos os sabores";
+  select.appendChild(todos);
+  ordenarProdutos(produtos).forEach((produto) => {
+    const opcao = document.createElement("option");
+    opcao.value = produto.id;
+    opcao.textContent = produto.nome;
+    select.appendChild(opcao);
+  });
+  select.value = produtos.some((p) => p.id === valor) ? valor : "";
+  levasProdutoFiltro = select.value;
+}
+
+function renderizarLevas() {
+  preencherFiltroLevas();
+  const container = el("lista-levas");
+  container.textContent = "";
+
+  const todas = calcularLevas().filter((leva) => !levasProdutoFiltro || leva.produtoId === levasProdutoFiltro);
+  el("btn-levas-mais").classList.toggle("oculto", todas.length <= levasLimite);
+
+  if (todas.length === 0) {
+    const vazio = document.createElement("p");
+    vazio.className = "mensagem-vendas-vazia";
+    vazio.textContent = "Nenhuma leva ainda. Ela começa quando você repõe o estoque e fecha quando zera.";
+    container.appendChild(vazio);
+    return;
+  }
+
+  todas.slice(0, levasLimite).forEach((leva) => {
+    const cartao = document.createElement("div");
+    cartao.className = "leva-item" + (leva.fim ? "" : " leva-aberta");
+
+    const topo = document.createElement("div");
+    topo.className = "leva-topo";
+    const nome = document.createElement("strong");
+    nome.textContent = leva.nome;
+    const periodo = document.createElement("span");
+    periodo.className = "leva-periodo";
+    periodo.textContent = leva.fim
+      ? `${dataCurta(leva.inicio)} a ${dataCurta(leva.fim)}`
+      : `${dataCurta(leva.inicio)} · em andamento`;
+    topo.appendChild(nome);
+    topo.appendChild(periodo);
+
+    const detalhe = document.createElement("div");
+    detalhe.className = "leva-detalhe";
+    [
+      ["Feitos", `${leva.feitos} un.`],
+      ["Vendidos", `${leva.vendidos} un.`],
+      ["Rendeu", formatarMoeda(leva.valor)],
+    ].forEach(([rotulo, valor]) => {
+      const caixa = document.createElement("span");
+      caixa.textContent = `${rotulo}: `;
+      const forte = document.createElement("strong");
+      forte.textContent = valor;
+      caixa.appendChild(forte);
+      detalhe.appendChild(caixa);
+    });
+
+    cartao.appendChild(topo);
+    cartao.appendChild(detalhe);
+    container.appendChild(cartao);
+  });
 }
 
 // Carrossel genérico: blocos que deslizam para o lado, com setas, contador e modo "completo"
@@ -1146,6 +1287,7 @@ el("btn-salvar-editar-produto").addEventListener("click", async () => {
   travaSalvar = true;
   mostrarCarregando(true);
   try {
+    const quantidadeAntes = parseInt(produtos.find((p) => p.id === produtoId)?.quantidade, 10) || 0;
     const { error } = await atualizarProduto(produtoId, { nome, categoria, quantidade, preco });
     if (error) {
       if (error.code === "23505") {
@@ -1154,6 +1296,13 @@ el("btn-salvar-editar-produto").addEventListener("click", async () => {
         throw error;
       }
       return;
+    }
+    if (quantidade !== quantidadeAntes) {
+      // Registra a correção manual para as levas conseguirem acompanhar o estoque
+      const { error: erroAjuste } = await db
+        .from("movimentacoes")
+        .insert({ produto_id: produtoId, tipo: "ajuste", quantidade: quantidade - quantidadeAntes, preco_unitario: preco });
+      if (erroAjuste) console.error("Não foi possível registrar o ajuste de estoque.", erroAjuste);
     }
     fecharModal("modal-editar-produto");
     esconderErro();
@@ -1218,6 +1367,15 @@ function configurarEventos() {
       // Tocar de novo no ícone aberto volta para a última categoria de produtos
       selecionarCategoria(id === categoriaAtual ? ultimaCategoriaProdutos : id);
     });
+  });
+  el("select-levas-produto").addEventListener("change", (evento) => {
+    levasProdutoFiltro = evento.target.value;
+    levasLimite = LEVAS_POR_VEZ;
+    renderizarLevas();
+  });
+  el("btn-levas-mais").addEventListener("click", () => {
+    levasLimite += LEVAS_POR_VEZ;
+    renderizarLevas();
   });
   el("btn-criar-categoria").addEventListener("click", criarCategoria);
   el("input-nova-categoria").addEventListener("keydown", (evento) => {
