@@ -61,11 +61,29 @@ img, canvas {
   gap: 8px;
 }
 
+.cabecalho {
+  align-items: center;
+  text-align: center;
+}
+
 .cabecalho h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
+  letter-spacing: 0.02em;
   color: var(--cor-principal);
+}
+
+/* Traço decorativo curto sob o nome */
+.cabecalho h1::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 999px;
+  background: var(--cor-principal);
+  opacity: 0.35;
 }
 
 /* ---------- Aviso de erro ---------- */
@@ -84,15 +102,18 @@ img, canvas {
 .abas-categorias {
   margin: 0 var(--espacamento-lateral) 12px;
   padding: 4px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
   gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
   background: #f2dfdf;
   border: 1px solid #d8bcbc;
   border-radius: var(--raio);
 }
 
 .aba-categoria {
+  flex: 1 0 auto;
+  white-space: nowrap;
   min-height: 42px;
   border: none;
   border-radius: 10px;
@@ -644,15 +665,13 @@ img, canvas {
 }
 
 .painel-vendas-detalhes {
-  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .grupo-vendas {
-  border-top: 1px solid #ead2d2;
-  padding-top: 12px;
+  padding-top: 2px;
 }
 
 .grupo-vendas h3 {
@@ -670,7 +689,7 @@ img, canvas {
 }
 
 .titulo-log {
-  margin: 16px 0 8px;
+  margin: 12px 0 6px;
   color: var(--cor-texto);
   font-size: 15px;
   font-weight: 800;
@@ -683,7 +702,7 @@ img, canvas {
   padding: 4px;
   background: #f2dfdf;
   border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .filtro-log-botao {
@@ -704,7 +723,105 @@ img, canvas {
 }
 
 .grupo-log {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+}
+
+/* Modo carrossel: cada dia/semana/mês ocupa a largura toda e desliza para o lado */
+.carrossel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transition: height 0.2s ease;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.carrossel::-webkit-scrollbar {
+  display: none;
+}
+
+.carrossel > * {
+  flex: 0 0 100%;
+  min-width: 0;
+  margin-bottom: 0;
+  scroll-snap-align: start;
+}
+
+.painel-vendas-detalhes.carrossel {
+  flex-direction: row;
+}
+
+.pilha-vendas {
+  display: block;
+}
+
+.log-controles {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 12px;
+}
+
+.log-area {
+  position: relative;
+}
+
+/* Setas nas laterais, no centro da tela enquanto a tabela estiver visível */
+.log-setas {
+  position: absolute;
+  inset: 0 -6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.log-setas.oculto-setas {
+  display: none;
+}
+
+.seta-log {
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(58, 42, 42, 0.25);
+  width: 26px;
+  height: 26px;
+  padding: 0 0 3px;
+  border: 1px solid var(--cor-principal-clara);
+  border-radius: 50%;
+  background: var(--cor-cartao);
+  color: var(--cor-principal);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.seta-log:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+
+.log-posicao {
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.botao-log-completo {
+  padding: 8px 12px;
+  border: 1px solid var(--cor-principal-clara);
+  border-radius: 10px;
+  background: var(--cor-cartao);
+  color: var(--cor-principal);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .grupo-log-cabecalho {
@@ -753,6 +870,43 @@ img, canvas {
   color: var(--cor-texto-suave);
   font-size: 13px;
   font-weight: 800;
+}
+
+.config-nova-categoria {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.config-nova-categoria .campo-novo-produto {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-categorias {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.config-categoria-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cor-borda);
+  color: var(--cor-texto);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.config-categoria-remover {
+  border: none;
+  background: none;
+  color: #c92a2a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .config-cores {
@@ -855,10 +1009,6 @@ img, canvas {
 }
 
 @media (max-width: 330px) {
-  .abas-categorias {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .aba-categoria {
     min-height: 38px;
     font-size: 13px;

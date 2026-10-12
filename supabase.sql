@@ -12,7 +12,7 @@ create extension if not exists pgcrypto;
 create table if not exists produtos (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
-  categoria text not null default 'geladinho' check (categoria in ('geladinho', 'trufas', 'doces')),
+  categoria text not null default 'geladinho',
   preco numeric(10,2),
   quantidade integer not null default 0 check (quantidade >= 0),
   ativo boolean not null default true,
@@ -24,7 +24,7 @@ create table if not exists produtos (
 alter table produtos add column if not exists ativo boolean not null default true;
 alter table produtos add column if not exists categoria text not null default 'geladinho';
 alter table produtos drop constraint if exists produtos_categoria_check;
-alter table produtos add constraint produtos_categoria_check check (categoria in ('geladinho', 'trufas', 'doces'));
+-- Categorias são livres (o usuário cria novas na aba Config.), então não há mais restrição de valores.
 
 -- Ajuda a migrar produtos antigos para a aba correta.
 update produtos

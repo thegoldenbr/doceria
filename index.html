@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=14" />
+<link rel="stylesheet" href="style.css?v=18" />
 </head>
 <body>
 
@@ -28,37 +28,13 @@
 
     <div id="aviso-erro" class="aviso-erro oculto" role="alert"></div>
 
-    <nav class="abas-categorias" aria-label="Categorias">
-      <button class="aba-categoria ativa" type="button" data-categoria="geladinho" aria-pressed="true">Geladinho</button>
-      <button class="aba-categoria" type="button" data-categoria="trufas" aria-pressed="false">Trufas</button>
-      <button class="aba-categoria" type="button" data-categoria="doces" aria-pressed="false">Doces</button>
-      <button class="aba-categoria" type="button" data-categoria="resumo" aria-pressed="false">Vendas</button>
-      <button class="aba-categoria" type="button" data-categoria="config" aria-pressed="false">Config.</button>
-    </nav>
+    <nav class="abas-categorias" aria-label="Categorias"></nav>
 
     <section id="cartao-produto-form" class="cartao-novo-produto">
       <h2 id="titulo-novo-produto">Novo geladinho</h2>
       <input id="input-novo-nome" class="campo-novo-produto" type="text" maxlength="80" placeholder="Nome (ex: Ninho com Oreo)" />
       <p id="erro-novo-produto" class="erro-campo oculto"></p>
       <button id="btn-salvar-novo-produto" class="botao botao-principal botao-largo" type="button">Salvar geladinho</button>
-      <div id="resumo-vendas" class="resumo-vendas" aria-live="polite">
-        <p id="resumo-vendas-titulo" class="resumo-vendas-titulo">Vendas dos geladinhos</p>
-        <div class="resumo-vendas-grid">
-          <div class="resumo-vendas-item">
-            <span class="resumo-vendas-label">Valor vendido</span>
-            <strong id="total-valor-vendido">R$ 0,00</strong>
-          </div>
-          <div class="resumo-vendas-item">
-            <span class="resumo-vendas-label">Quantidade vendida</span>
-            <strong id="total-quantidade-vendida">0 un.</strong>
-          </div>
-          <div class="resumo-vendas-item">
-            <span class="resumo-vendas-label">Sabores diferentes</span>
-            <strong id="total-sabores-vendidos">0</strong>
-          </div>
-        </div>
-        <div id="resumo-vendas-sabores" class="resumo-vendas-sabores"></div>
-      </div>
     </section>
 
     <main id="lista-produtos" class="lista-produtos">
@@ -66,35 +42,70 @@
       <p id="carregando" class="carregando">Carregando produtos…</p>
     </main>
 
-    <section id="painel-vendas" class="painel-vendas oculto">
-      <h2>Vendas gerais</h2>
-      <div class="resumo-vendas-grid">
-        <div class="resumo-vendas-item">
-          <span class="resumo-vendas-label">Valor vendido</span>
-          <strong id="total-geral-valor">R$ 0,00</strong>
+    <div id="painel-vendas" class="pilha-vendas oculto">
+      <section class="painel-vendas">
+        <h2>Vendas gerais</h2>
+        <div class="resumo-vendas-grid">
+          <div class="resumo-vendas-item">
+            <span class="resumo-vendas-label">Valor vendido</span>
+            <strong id="total-geral-valor">R$ 0,00</strong>
+          </div>
+          <div class="resumo-vendas-item">
+            <span class="resumo-vendas-label">Quantidade vendida</span>
+            <strong id="total-geral-quantidade">0 un.</strong>
+          </div>
+          <div class="resumo-vendas-item">
+            <span class="resumo-vendas-label">Sabores diferentes</span>
+            <strong id="total-geral-sabores">0</strong>
+          </div>
         </div>
-        <div class="resumo-vendas-item">
-          <span class="resumo-vendas-label">Quantidade vendida</span>
-          <strong id="total-geral-quantidade">0 un.</strong>
+      </section>
+
+      <section class="painel-vendas">
+        <h2>Histórico de vendas</h2>
+        <div class="filtro-log" role="group" aria-label="Agrupar histórico">
+          <button type="button" class="filtro-log-botao ativo" data-agrupar="dia" aria-pressed="true">Dia</button>
+          <button type="button" class="filtro-log-botao" data-agrupar="semana" aria-pressed="false">Semana</button>
+          <button type="button" class="filtro-log-botao" data-agrupar="mes" aria-pressed="false">Mês</button>
         </div>
-        <div class="resumo-vendas-item">
-          <span class="resumo-vendas-label">Sabores diferentes</span>
-          <strong id="total-geral-sabores">0</strong>
+        <div class="log-area">
+          <div id="log-vendas" class="log-vendas"></div>
+          <div id="log-setas" class="log-setas">
+            <button id="btn-log-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
+            <button id="btn-log-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
+          </div>
         </div>
-      </div>
-      <h3 class="titulo-log">Histórico de vendas</h3>
-      <div class="filtro-log" role="group" aria-label="Agrupar histórico">
-        <button type="button" class="filtro-log-botao ativo" data-agrupar="dia" aria-pressed="true">Dia</button>
-        <button type="button" class="filtro-log-botao" data-agrupar="semana" aria-pressed="false">Semana</button>
-        <button type="button" class="filtro-log-botao" data-agrupar="mes" aria-pressed="false">Mês</button>
-      </div>
-      <div id="log-vendas" class="log-vendas"></div>
-      <h3 class="titulo-log">Por sabor</h3>
-      <div id="painel-vendas-detalhes" class="painel-vendas-detalhes"></div>
-    </section>
+        <div class="log-controles">
+          <span id="log-posicao" class="log-posicao"></span>
+          <button id="btn-log-completo" class="botao-log-completo" type="button" aria-pressed="false">Exibir completo</button>
+        </div>
+      </section>
+
+      <section class="painel-vendas">
+        <h2>Por sabor</h2>
+        <div class="log-area">
+          <div id="painel-vendas-detalhes" class="painel-vendas-detalhes"></div>
+          <div id="sabor-setas" class="log-setas">
+            <button id="btn-sabor-anterior" class="seta-log" type="button" aria-label="Anterior">‹</button>
+            <button id="btn-sabor-proximo" class="seta-log" type="button" aria-label="Próximo">›</button>
+          </div>
+        </div>
+        <div class="log-controles">
+          <span id="sabor-posicao" class="log-posicao"></span>
+          <button id="btn-sabor-completo" class="botao-log-completo" type="button" aria-pressed="false">Exibir completo</button>
+        </div>
+      </section>
+    </div>
 
     <section id="painel-config" class="painel-vendas oculto">
       <h2>Configurações</h2>
+      <p class="config-rotulo">Categorias</p>
+      <div class="config-nova-categoria">
+        <input id="input-nova-categoria" class="campo-novo-produto" type="text" maxlength="30" placeholder="Nome da nova categoria" />
+        <button id="btn-criar-categoria" class="botao botao-principal" type="button">Criar</button>
+      </div>
+      <p id="erro-nova-categoria" class="erro-campo oculto"></p>
+      <ul id="config-categorias" class="config-categorias"></ul>
       <p class="config-rotulo">Cor do sistema</p>
       <div id="config-cores" class="config-cores"></div>
       <label class="config-personalizada">
@@ -177,6 +188,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=18" defer></script>
+  <script src="app.js?v=20" defer></script>
 </body>
 </html>

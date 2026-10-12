@@ -17,6 +17,7 @@ const ABA_RESUMO = "resumo";
 const ABA_CONFIG = "config";
 const COR_ORIGINAL = CONFIG.COR_PRINCIPAL;
 const CHAVE_COR = "doceria_cor_principal";
+const CHAVE_CATEGORIAS = "doceria_categorias_extras";
 const CORES_SUGERIDAS = ["#d6336c", "#e8590c", "#f08c00", "#2f9e44", "#0c8599", "#1971c2", "#7048e8", "#862e9c", "#495057"];
 const VENDAS_CONTAR_A_PARTIR_DE = "2026-09-29T03:29:32.211Z";
 const TEMPO_DESFAZER_VENDA_MS = 2 * 60 * 1000;
@@ -79,6 +80,69 @@ const CONFIG_ABA = {
   vazioImagem: "",
 };
 
+// ---------- Categorias criadas pelo usuário (guardadas neste aparelho) ----------
+
+function slugCategoria(nome) {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function criarConfigCategoria(id, nome) {
+  return {
+    id,
+    nome,
+    personalizada: true,
+    tituloNovo: `Novo produto em ${nome}`,
+    placeholderNovo: "Nome do produto",
+    textoSalvar: "Salvar produto",
+    textoGerarImagem: `📸 Gerar imagem de ${nome}`,
+    tituloVendas: `Vendas de ${nome}`,
+    tituloImagem: `${nome} disponíveis hoje`,
+    vazioLista: `Nenhum produto em ${nome} ainda. Use o formulário acima para começar.`,
+    vazioImagem: `Nenhum produto ativo em ${nome}. Cadastre ou ative algum para gerar a imagem.`,
+  };
+}
+
+function carregarCategoriasSalvas() {
+  try {
+    const salvas = JSON.parse(localStorage.getItem(CHAVE_CATEGORIAS) || "[]");
+    if (!Array.isArray(salvas)) return;
+    salvas.forEach((item) => {
+      if (item && item.id && item.nome && !CATEGORIAS.some((c) => c.id === item.id)) {
+        CATEGORIAS.push(criarConfigCategoria(item.id, item.nome));
+      }
+    });
+  } catch (erro) { /* sem armazenamento: só as categorias padrão */ }
+}
+
+function salvarCategorias() {
+  const extras = CATEGORIAS.filter((c) => c.personalizada && !c.somenteBanco).map((c) => ({ id: c.id, nome: c.nome }));
+  try { localStorage.setItem(CHAVE_CATEGORIAS, JSON.stringify(extras)); } catch (erro) { /* ignora */ }
+}
+
+// Produtos de outro aparelho podem ter categorias que este ainda não conhece
+function sincronizarCategoriasDosProdutos() {
+  let mudou = false;
+  produtos.forEach((produto) => {
+    const id = produto.categoria;
+    if (!id || id === ABA_RESUMO || id === ABA_CONFIG || CATEGORIAS.some((c) => c.id === id)) return;
+    const nome = id.replace(/-/g, " ").replace(/^./, (l) => l.toUpperCase());
+    const config = criarConfigCategoria(id, nome);
+    config.somenteBanco = true;
+    CATEGORIAS.push(config);
+    imagensPorCategoria[id] = { blob: null, url: "" };
+    mudou = true;
+  });
+  if (mudou) renderizarAbasCategorias();
+}
+
+carregarCategoriasSalvas();
+
 let categoriaAtual = CATEGORIA_PADRAO;
 let agruparLog = "dia";
 let mostrarPrecosImagem = true;
@@ -92,7 +156,38 @@ const estadoVazio = el("estado-vazio");
 const carregando = el("carregando");
 const avisoErro = el("aviso-erro");
 const indicadorCarregando = el("indicador-carregando");
-const abasCategorias = Array.from(document.querySelectorAll(".aba-categoria"));
+const navCategorias = document.querySelector(".abas-categorias");
+const abasCategorias = () => Array.from(navCategorias.querySelectorAll(".aba-categoria"));
+
+// Monta as abas: categorias (padrão + criadas), depois Vendas e Config.
+function renderizarAbasCategorias() {
+  navCategorias.textContent = "";
+  const ids = [...CATEGORIAS.map((c) => c.id), ABA_RESUMO, ABA_CONFIG];
+  ids.forEach((id) => {
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.className = "aba-categoria" + (id === categoriaAtual ? " ativa" : "");
+    botao.dataset.categoria = id;
+    botao.setAttribute("aria-pressed", id === categoriaAtual ? "true" : "false");
+    botao.textContent = categoriaConfig(id).nome;
+    navCategorias.appendChild(botao);
+  });
+  atualizarContadoresCategorias();
+  preencherSelectCategorias();
+}
+
+function preencherSelectCategorias() {
+  const select = el("select-editar-categoria");
+  const valor = select.value;
+  select.textContent = "";
+  CATEGORIAS.forEach((categoria) => {
+    const opcao = document.createElement("option");
+    opcao.value = categoria.id;
+    opcao.textContent = categoria.nome;
+    select.appendChild(opcao);
+  });
+  if (valor) select.value = valor;
+}
 
 // ============================================================
 // INICIALIZAÇÃO
@@ -172,6 +267,7 @@ function limparImagensGeradas() {
 
 async function iniciar() {
   aplicarConfiguracaoVisual();
+  renderizarAbasCategorias();
   atualizarInterfaceCategoria();
   configurarEventos();
   await carregarProdutos();
@@ -199,6 +295,7 @@ async function carregarProdutos() {
     if (error) throw error;
 
     produtos = data || [];
+    sincronizarCategoriasDosProdutos();
     await carregarVendas();
     limparImagensGeradas();
     renderizarProdutos();
@@ -346,18 +443,8 @@ function preencherListaVendasPorSabor(container, categoriaId) {
   });
 }
 
-function atualizarResumoVendas() {
-  const config = categoriaConfig();
-  const resumo = resumoVendasDaCategoria();
-  el("resumo-vendas-titulo").textContent = config.tituloVendas;
-  el("total-quantidade-vendida").textContent = formatarQuantidadeVendida(resumo.quantidade);
-  el("total-valor-vendido").textContent = formatarMoeda(resumo.valor);
-  el("total-sabores-vendidos").textContent = String(saboresDiferentesVendidos(categoriaAtual));
-  preencherListaVendasPorSabor(el("resumo-vendas-sabores"), categoriaAtual);
-}
-
 function atualizarContadoresCategorias() {
-  abasCategorias.forEach((aba) => {
+  abasCategorias().forEach((aba) => {
     const config = categoriaConfig(aba.dataset.categoria);
     if (config.id === ABA_RESUMO || config.id === ABA_CONFIG) {
       aba.textContent = config.nome;
@@ -399,10 +486,12 @@ function renderizarPainelVendas() {
     grupo.appendChild(sabores);
     detalhes.appendChild(grupo);
   });
+  carrosselSabores.atualizar();
 }
 
 // ---------- Histórico de vendas (log por dia, semana e mês) ----------
 
+const LINHAS_POR_PAGINA_LOG = 10;
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const DIAS_CURTOS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -473,6 +562,7 @@ function renderizarLogVendas() {
     vazio.className = "mensagem-vendas-vazia";
     vazio.textContent = "Nenhuma venda registrada ainda.";
     container.appendChild(vazio);
+    carrosselLog.atualizar();
     return;
   }
 
@@ -486,7 +576,19 @@ function renderizarLogVendas() {
     grupo.valor += registro.valor;
   });
 
+  // Em blocos: cada slide mostra até 10 linhas; no modo completo, tudo de uma vez
+  const paginas = [];
   grupos.forEach((grupo) => {
+    const itens = carrosselLog.estaCompleto() ? [grupo.itens] : [];
+    if (itens.length === 0) {
+      for (let i = 0; i < grupo.itens.length; i += LINHAS_POR_PAGINA_LOG) {
+        itens.push(grupo.itens.slice(i, i + LINHAS_POR_PAGINA_LOG));
+      }
+    }
+    itens.forEach((linhas) => paginas.push({ grupo, linhas }));
+  });
+
+  paginas.forEach(({ grupo, linhas }) => {
     const bloco = document.createElement("section");
     bloco.className = "grupo-log";
 
@@ -500,7 +602,7 @@ function renderizarLogVendas() {
     cabecalho.appendChild(total);
     bloco.appendChild(cabecalho);
 
-    grupo.itens.forEach((item) => {
+    linhas.forEach((item) => {
       const linha = document.createElement("div");
       linha.className = "linha-log";
       const quando = document.createElement("span");
@@ -518,7 +620,87 @@ function renderizarLogVendas() {
 
     container.appendChild(bloco);
   });
+
+  carrosselLog.voltarAoInicio();
+  carrosselLog.atualizar();
 }
+
+// Carrossel genérico: blocos que deslizam para o lado, com setas, contador e modo "completo"
+function criarCarrossel({ container, setas, anterior, proximo, posicao, completo, item, unidade, aoAlternar }) {
+  let modoCompleto = false;
+  const blocos = () => container.querySelectorAll(item);
+  // Distância de um slide ao próximo (largura + espaço entre eles)
+  const passo = () => {
+    const lista = blocos();
+    const distancia = lista.length > 1 ? lista[1].offsetLeft - lista[0].offsetLeft : 0;
+    return distancia > 0 ? distancia : container.clientWidth || 1;
+  };
+  const indiceAtual = () => Math.round(container.scrollLeft / passo());
+
+  function atualizar() {
+    const total = blocos().length;
+    const emCarrossel = !modoCompleto && total > 1;
+    container.classList.toggle("carrossel", !modoCompleto);
+    setas.classList.toggle("oculto-setas", !emCarrossel);
+    completo.textContent = modoCompleto ? "Exibir em blocos" : "Exibir completo";
+    completo.setAttribute("aria-pressed", modoCompleto ? "true" : "false");
+    completo.classList.toggle("oculto", total < 2);
+
+    if (!emCarrossel) {
+      container.style.height = "";
+      posicao.textContent = total > 0 ? `${total} ${total === 1 ? unidade[0] : unidade[1]}` : "";
+      return;
+    }
+    // A altura acompanha só o bloco visível, sem sobrar espaço do bloco mais comprido
+    const indice = Math.max(0, Math.min(total - 1, indiceAtual()));
+    container.style.height = `${blocos()[indice].offsetHeight}px`;
+    posicao.textContent = `${indice + 1} de ${total}`;
+    anterior.disabled = indice <= 0;
+    proximo.disabled = indice >= total - 1;
+  }
+
+  const mover = (direcao) => {
+    const alvo = Math.max(0, Math.min(blocos().length - 1, indiceAtual() + direcao));
+    container.scrollTo({ left: alvo * passo(), behavior: "smooth" });
+  };
+  anterior.addEventListener("click", () => mover(-1));
+  proximo.addEventListener("click", () => mover(1));
+  container.addEventListener("scroll", atualizar, { passive: true });
+  completo.addEventListener("click", () => {
+    modoCompleto = !modoCompleto;
+    if (aoAlternar) aoAlternar();
+    atualizar();
+  });
+
+  return {
+    atualizar,
+    estaCompleto: () => modoCompleto,
+    voltarAoInicio: () => { container.scrollLeft = 0; },
+  };
+}
+
+const carrosselLog = criarCarrossel({
+  container: el("log-vendas"),
+  setas: el("log-setas"),
+  anterior: el("btn-log-anterior"),
+  proximo: el("btn-log-proximo"),
+  posicao: el("log-posicao"),
+  completo: el("btn-log-completo"),
+  item: ".grupo-log",
+  unidade: ["página", "páginas"],
+  aoAlternar: () => renderizarLogVendas(),
+});
+
+const carrosselSabores = criarCarrossel({
+  container: el("painel-vendas-detalhes"),
+  setas: el("sabor-setas"),
+  anterior: el("btn-sabor-anterior"),
+  proximo: el("btn-sabor-proximo"),
+  posicao: el("sabor-posicao"),
+  completo: el("btn-sabor-completo"),
+  item: ".grupo-vendas",
+  unidade: ["categoria", "categorias"],
+});
 
 function definirAgrupamentoLog(modo) {
   agruparLog = modo;
@@ -548,6 +730,75 @@ function renderizarConfig() {
   });
 
   el("input-cor-personalizada").value = atual;
+  renderizarCategoriasConfig();
+}
+
+function renderizarCategoriasConfig() {
+  const lista = el("config-categorias");
+  lista.textContent = "";
+  CATEGORIAS.forEach((categoria) => {
+    const linha = document.createElement("li");
+    linha.className = "config-categoria-item";
+
+    const nome = document.createElement("span");
+    nome.textContent = categoria.nome;
+    linha.appendChild(nome);
+
+    if (categoria.personalizada) {
+      const remover = document.createElement("button");
+      remover.type = "button";
+      remover.className = "config-categoria-remover";
+      remover.textContent = "Remover";
+      remover.setAttribute("aria-label", `Remover a categoria ${categoria.nome}`);
+      remover.addEventListener("click", () => removerCategoria(categoria.id));
+      linha.appendChild(remover);
+    }
+    lista.appendChild(linha);
+  });
+}
+
+function criarCategoria() {
+  const nome = el("input-nova-categoria").value.trim().replace(/\s+/g, " ");
+  if (!nome) {
+    mostrarErroCampo("erro-nova-categoria", "Digite o nome da categoria.");
+    return;
+  }
+  const id = slugCategoria(nome);
+  if (!id || id === ABA_RESUMO || id === ABA_CONFIG) {
+    mostrarErroCampo("erro-nova-categoria", "Escolha outro nome para a categoria.");
+    return;
+  }
+  const repetida = CATEGORIAS.some((c) => c.id === id || c.nome.toLowerCase() === nome.toLowerCase());
+  if (repetida) {
+    mostrarErroCampo("erro-nova-categoria", "Já existe uma categoria com esse nome.");
+    return;
+  }
+
+  CATEGORIAS.push(criarConfigCategoria(id, nome));
+  imagensPorCategoria[id] = { blob: null, url: "" };
+  salvarCategorias();
+  el("input-nova-categoria").value = "";
+  esconderErroCampo("erro-nova-categoria");
+  renderizarAbasCategorias();
+  renderizarCategoriasConfig();
+}
+
+function removerCategoria(categoriaId) {
+  const categoria = CATEGORIAS.find((c) => c.id === categoriaId);
+  if (!categoria || !categoria.personalizada) return;
+  if (produtosDaCategoria(categoriaId).length > 0) {
+    mostrarErroCampo("erro-nova-categoria", `Mova ou exclua os produtos de "${categoria.nome}" antes de remover a categoria.`);
+    return;
+  }
+  if (!window.confirm(`Remover a categoria "${categoria.nome}"?`)) return;
+
+  limparImagemCategoria(categoriaId);
+  delete imagensPorCategoria[categoriaId];
+  CATEGORIAS.splice(CATEGORIAS.indexOf(categoria), 1);
+  salvarCategorias();
+  esconderErroCampo("erro-nova-categoria");
+  renderizarAbasCategorias();
+  renderizarCategoriasConfig();
 }
 
 function mudarCorSistema(cor, salvar = true) {
@@ -583,7 +834,6 @@ function renderizarProdutos() {
   const ordenados = ordenarProdutos(produtosDaCategoria());
   estadoVazio.textContent = categoriaConfig().vazioLista;
   estadoVazio.classList.toggle("oculto", ordenados.length > 0);
-  atualizarResumoVendas();
 
   ordenados.forEach((produto) => {
     listaProdutos.appendChild(criarCardProduto(produto));
@@ -736,6 +986,7 @@ async function registrarMovimentacaoProduto(produtoId, tipo, botao) {
 
     esconderErro();
     await carregarProdutos();
+    if (acao === "venda") await pausarSeZerado(produtoId);
   } catch (erro) {
     console.error(erro);
     mostrarErro(mensagemErroMovimentacao(acao));
@@ -744,6 +995,20 @@ async function registrarMovimentacaoProduto(produtoId, tipo, botao) {
     travaSalvar = false;
     mostrarCarregando(false);
   }
+}
+
+// Quando o estoque chega a 0, o produto é pausado sozinho (sai da imagem do WhatsApp)
+async function pausarSeZerado(produtoId) {
+  const produto = produtos.find((p) => p.id === produtoId);
+  if (!produto || produto.quantidade !== 0 || produto.ativo === false) return;
+
+  const { error } = await db.from("produtos").update({ ativo: false }).eq("id", produtoId);
+  if (error) {
+    console.error(error);
+    return;
+  }
+  produto.ativo = false;
+  renderizarProdutos();
 }
 
 function vendaRecenteParaDesfazer(produtoId) {
@@ -814,6 +1079,8 @@ el("btn-salvar-novo-produto").addEventListener("click", async () => {
     if (error) {
       if (error.code === "23505") {
         mostrarErroCampo("erro-novo-produto", "Já existe um produto com esse nome.");
+      } else if (error.code === "23514") {
+        mostrarErroCampo("erro-novo-produto", "O banco ainda só aceita as 3 categorias antigas. Rode o ajuste do supabase.sql (remover produtos_categoria_check).");
       } else {
         throw error;
       }
@@ -896,7 +1163,9 @@ el("btn-salvar-editar-produto").addEventListener("click", async () => {
     }
     fecharModal("modal-editar-produto");
     esconderErro();
+    const tinhaEstoque = (produtos.find((p) => p.id === produtoId)?.quantidade ?? 0) > 0;
     await carregarProdutos();
+    if (quantidade === 0 && tinhaEstoque) await pausarSeZerado(produtoId);
   } catch (erro) {
     console.error(erro);
     mostrarErroCampo("erro-editar-produto", "Sem conexão. As alterações NÃO foram salvas, tente de novo.");
@@ -945,8 +1214,13 @@ function fecharModal(id) {
 }
 
 function configurarEventos() {
-  abasCategorias.forEach((aba) => {
-    aba.addEventListener("click", () => selecionarCategoria(aba.dataset.categoria));
+  navCategorias.addEventListener("click", (evento) => {
+    const aba = evento.target.closest(".aba-categoria");
+    if (aba) selecionarCategoria(aba.dataset.categoria);
+  });
+  el("btn-criar-categoria").addEventListener("click", criarCategoria);
+  el("input-nova-categoria").addEventListener("keydown", (evento) => {
+    if (evento.key === "Enter") criarCategoria();
   });
 
   document.querySelectorAll("[data-fechar-modal]").forEach((botao) => {
@@ -998,7 +1272,7 @@ function atualizarInterfaceCategoria() {
   const configAtivo = categoriaAtual === ABA_CONFIG;
   const semProdutos = resumoAtivo || configAtivo;
 
-  abasCategorias.forEach((aba) => {
+  abasCategorias().forEach((aba) => {
     const ativa = aba.dataset.categoria === categoriaAtual;
     aba.classList.toggle("ativa", ativa);
     aba.setAttribute("aria-pressed", ativa ? "true" : "false");
@@ -1024,7 +1298,6 @@ function atualizarInterfaceCategoria() {
   el("btn-salvar-novo-produto").textContent = config.textoSalvar;
   el("btn-gerar-imagem").textContent = config.textoGerarImagem;
   el("aviso-sem-produtos").textContent = config.vazioImagem;
-  atualizarResumoVendas();
 }
 
 // ============================================================
