@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <title>Estoque</title>
-<link rel="stylesheet" href="style.css?v=19" />
+<link rel="stylesheet" href="style.css?v=21" />
 </head>
 <body>
 
@@ -103,12 +103,13 @@
 
     <section id="painel-config" class="painel-vendas oculto">
       <h2>Configurações</h2>
-      <p class="config-rotulo">Categorias</p>
+      <p class="config-rotulo">Criar categoria</p>
       <div class="config-nova-categoria">
-        <input id="input-nova-categoria" class="campo-novo-produto" type="text" maxlength="30" placeholder="Nome da nova categoria" />
-        <button id="btn-criar-categoria" class="botao botao-principal" type="button">Criar</button>
+        <input id="input-nova-categoria" class="campo-novo-produto" type="text" maxlength="30" placeholder="Nome da nova categoria (ex: Bolos)" />
+        <button id="btn-criar-categoria" class="botao botao-principal botao-largo" type="button">Criar categoria</button>
       </div>
       <p id="erro-nova-categoria" class="erro-campo oculto"></p>
+      <p class="config-rotulo">Categorias existentes</p>
       <ul id="config-categorias" class="config-categorias"></ul>
       <p class="config-rotulo">Cor do sistema</p>
       <div id="config-cores" class="config-cores"></div>

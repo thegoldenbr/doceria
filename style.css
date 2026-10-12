@@ -62,15 +62,21 @@ img, canvas {
 }
 
 .cabecalho {
+  flex-direction: row;
   align-items: center;
-  text-align: center;
-  position: relative;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cabecalho h1 {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .acoes-cabecalho {
-  position: absolute;
-  top: 18px;
-  right: var(--espacamento-lateral);
+  flex: none;
   display: flex;
   gap: 6px;
 }
@@ -93,7 +99,7 @@ img, canvas {
 
 .cabecalho h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: clamp(22px, 7vw, 30px);
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--cor-principal);
@@ -105,7 +111,7 @@ img, canvas {
   display: block;
   width: 48px;
   height: 4px;
-  margin: 8px auto 0;
+  margin: 8px 0 0;
   border-radius: 999px;
   background: var(--cor-principal);
   opacity: 0.35;
@@ -899,12 +905,12 @@ img, canvas {
 
 .config-nova-categoria {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
 .config-nova-categoria .campo-novo-produto {
-  flex: 1;
   min-width: 0;
 }
 
